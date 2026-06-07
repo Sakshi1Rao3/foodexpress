@@ -35,9 +35,4 @@ FoodExpress is a modern food delivery platform that allows users to browse resta
 - Express.js
 
 ### Database
-- MongoDB
-
-### Authentication
-- JWT (JSON Web Tokens)
-
-## 📂 Project Structure
+- Supabase
