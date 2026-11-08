@@ -22,6 +22,7 @@ export default function SignupPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [needsConfirmation, setNeedsConfirmation] = useState(false)
 
   const validateForm = () => {
     if (!fullName.trim()) {
@@ -54,18 +55,19 @@ export default function SignupPage() {
     setLoading(true)
 
     try {
-      const { error: signUpError } = await signUp(email, password)
+      const { error: signUpError, needsConfirmation } = await signUp(email, password, fullName.trim())
       if (signUpError) {
         setError(signUpError)
         setLoading(false)
         return
       }
 
-      // Show success message
+      // Show success message; without email confirmation the user is already signed in
+      setNeedsConfirmation(!!needsConfirmation)
       setSuccess(true)
       setTimeout(() => {
-        router.push('/login')
-      }, 2000)
+        router.push(needsConfirmation ? '/login' : '/')
+      }, needsConfirmation ? 5000 : 2000)
     } catch (err) {
       setError('An unexpected error occurred')
       setLoading(false)
@@ -85,7 +87,9 @@ export default function SignupPage() {
               </div>
               <h2 className="mb-2 text-2xl font-bold text-center">Account Created!</h2>
               <p className="text-center text-muted-foreground mb-4">
-                Your FoodExpress account has been created successfully. Redirecting to login...
+                {needsConfirmation
+                  ? 'Your FoodExpress account has been created. Please check your email to confirm your account, then sign in. Redirecting to login...'
+                  : 'Your FoodExpress account has been created successfully. Redirecting...'}
               </p>
             </CardContent>
           </Card>

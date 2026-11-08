@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShoppingBag, ArrowLeft, ShoppingCart } from "lucide-react";
+import { ShoppingBag, ArrowLeft, ShoppingCart, Loader2 } from "lucide-react";
 import { useCart } from "@/context/cart-context";
+import { useAuth } from "@/context/auth-context";
+import { createClient, SUPABASE_NOT_CONFIGURED_MESSAGE } from "@/lib/supabase-client";
 import { CartItem } from "@/components/cart-item";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,10 +14,46 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export default function CartPage() {
   const router = useRouter();
   const { items, totalAmount, clearCart } = useCart();
+  const { user, loading: authLoading } = useAuth();
+  const [placing, setPlacing] = useState(false);
+  const [error, setError] = useState("");
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
+    setError("");
+
+    if (!user) {
+      router.push("/login?next=/cart");
+      return;
+    }
+
+    const supabase = createClient();
+    if (!supabase) {
+      setError(SUPABASE_NOT_CONFIGURED_MESSAGE);
+      return;
+    }
+
+    setPlacing(true);
+    const { data, error: insertError } = await supabase
+      .from("user_orders")
+      .insert({
+        user_id: user.id,
+        items,
+        subtotal: totalAmount,
+        delivery_fee: deliveryFee,
+        taxes,
+        total: grandTotal,
+      })
+      .select("id")
+      .single();
+
+    if (insertError || !data) {
+      setError(insertError?.message || "Could not place your order. Please try again.");
+      setPlacing(false);
+      return;
+    }
+
     clearCart();
-    router.push("/order-success");
+    router.push(`/order-success?id=${data.id}`);
   };
 
   if (items.length === 0) {
@@ -97,12 +136,28 @@ export default function CartPage() {
                   </div>
                 </div>
 
+                {error && (
+                  <div className="rounded-lg bg-destructive/10 px-4 py-2 text-sm text-destructive">
+                    {error}
+                  </div>
+                )}
+
                 <Button
                   onClick={handlePlaceOrder}
                   className="w-full"
                   size="lg"
+                  disabled={placing || authLoading}
                 >
-                  Place Order
+                  {placing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Placing Order...
+                    </>
+                  ) : user || authLoading ? (
+                    "Place Order"
+                  ) : (
+                    "Login to Place Order"
+                  )}
                 </Button>
 
                 <p className="text-center text-xs text-muted-foreground">

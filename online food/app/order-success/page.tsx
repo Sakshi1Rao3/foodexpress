@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { CheckCircle, Home, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatOrderId } from "@/lib/orders";
 
-export default function OrderSuccessPage() {
+interface OrderSuccessPageProps {
+  searchParams: Promise<{ id?: string }>;
+}
+
+export default async function OrderSuccessPage({ searchParams }: OrderSuccessPageProps) {
+  const { id } = await searchParams;
   return (
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-background px-4">
       <div className="mx-auto max-w-md text-center">
@@ -34,7 +40,7 @@ export default function OrderSuccessPage() {
           <div className="mb-4 flex items-center justify-center gap-2">
             <span className="text-sm text-muted-foreground">Order ID:</span>
             <span className="font-mono font-semibold text-foreground">
-              #FE{Math.random().toString(36).substring(2, 8).toUpperCase()}
+              {id ? formatOrderId(id) : "—"}
             </span>
           </div>
           <div className="flex items-center justify-center gap-4 text-sm">

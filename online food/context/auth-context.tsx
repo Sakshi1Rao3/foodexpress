@@ -1,14 +1,18 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase-client'
+import { createClient, SUPABASE_NOT_CONFIGURED_MESSAGE } from '@/lib/supabase-client'
 import { User, Session } from '@supabase/supabase-js'
 
 interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
-  signUp: (email: string, password: string) => Promise<{ error: string | null }>
+  signUp: (
+    email: string,
+    password: string,
+    fullName?: string
+  ) => Promise<{ error: string | null; needsConfirmation?: boolean }>
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
 }
@@ -19,9 +23,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   useEffect(() => {
+    // Create the client only in the browser so server rendering never depends on it
+    const supabase = createClient()
+    if (!supabase) {
+      console.error(SUPABASE_NOT_CONFIGURED_MESSAGE)
+      setLoading(false)
+      return
+    }
+
     // Get initial session
     const getSession = async () => {
       try {
@@ -48,24 +59,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription?.unsubscribe()
     }
-  }, [supabase])
+  }, [])
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, fullName?: string) => {
+    const supabase = createClient()
+    if (!supabase) {
+      return { error: SUPABASE_NOT_CONFIGURED_MESSAGE }
+    }
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: fullName ? { full_name: fullName } : undefined,
+          emailRedirectTo: window.location.origin,
+        },
       })
       if (error) {
         return { error: error.message }
       }
-      return { error: null }
+      // No session means the project requires email confirmation before login
+      return { error: null, needsConfirmation: !data.session }
     } catch (error) {
       return { error: 'An unexpected error occurred' }
     }
   }
 
   const signIn = async (email: string, password: string) => {
+    const supabase = createClient()
+    if (!supabase) {
+      return { error: SUPABASE_NOT_CONFIGURED_MESSAGE }
+    }
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -81,8 +105,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
+    const supabase = createClient()
     try {
-      await supabase.auth.signOut()
+      await supabase?.auth.signOut()
       setUser(null)
       setSession(null)
     } catch (error) {

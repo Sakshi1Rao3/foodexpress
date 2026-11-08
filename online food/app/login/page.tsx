@@ -32,8 +32,9 @@ export default function LoginPage() {
         return
       }
 
-      // Redirect to home on successful login
-      router.push('/')
+      // Return to the page that sent the user here (e.g. checkout), otherwise home
+      const next = new URLSearchParams(window.location.search).get('next')
+      router.push(next && next.startsWith('/') && !next.startsWith('//') ? next : '/')
     } catch (err) {
       setError('An unexpected error occurred')
       setLoading(false)
